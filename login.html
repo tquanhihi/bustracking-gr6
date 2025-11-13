@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Đăng nhập - SSB 1.0</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <h1>Hệ thống SSB 1.0</h1>
+    <p>Vui lòng chọn tài khoản demo để đăng nhập:</p>
+    <div class="login-buttons">
+      <button onclick="loginAs('manager')">👔 Quản lý (Manager)</button>
+      <button onclick="loginAs('driver')">🚌 Tài xế (Driver)</button>
+      <button onclick="loginAs('parent')">👪 Phụ huynh (Parent)</button>
+    </div>
+  </div>
+
+  <script>
+    function loginAs(role) {
+      localStorage.setItem('role', role);
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
+
+
