@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>SSB 1.0 - Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="sidebar" id="left-sidebar">
+    <h2>SSB 1.0</h2>
+    <ul id="main-nav">
+      <!-- Quản lý -->
+  <!-- === QUẢN LÝ === -->
+  <li class="manager-only" data-page="m-dashboard">📊 <span>Tổng quan hệ thống</span></li>
+  <li class="manager-only" data-page="m-schedules">🗓️ <span>Lịch trình xe</span></li>
+  <li class="manager-only" data-page="m-routes">🧭 <span>Phân công tài xế & xe buýt</span></li>
+  <li class="manager-only" data-page="m-tracking">📍 <span>Theo dõi vị trí xe</span></li>
+  <li class="manager-only" data-page="m-messages">💬 <span>Tin nhắn</span></li>
+
+  <!-- === TÀI XẾ === -->
+  <li class="driver-only" data-page="d-schedules">📅 <span>Lịch làm việc</span></li>
+  <li class="driver-only" data-page="d-users">👨‍🎓 <span>Danh sách học sinh</span></li>
+  <li class="driver-only" data-page="d-reports">✅ <span>Báo cáo đón / trả</span></li>
+  <li class="driver-only" data-page="d-messages">⚠️ <span>Cảnh báo sự cố</span></li>
+
+  <!-- === PHỤ HUYNH === -->
+  <li class="parent-only" data-page="p-tracking">🚌 <span>Theo dõi xe của con</span></li>
+  <li class="parent-only" data-page="p-messages">🔔 <span>Xe đến gần</span></li>
+  <li class="parent-only" data-page="p-reports">🚨 <span>Trễ chuyến</span></li>
+    </ul>
+    <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <div class="main-content" id="main-content-area">
+    <!-- Nội dung chính sẽ chứa toàn bộ views (dashboard, schedules, routes, users, tracking, messages, reports) -->
+    <!-- Copy giao diện từ bản demo vào đây -->
+    <div class="app" id="app">
+      <main class="main">
+        <div class="container">
+          <div class="mobile-top">
+            <button class="open-sb" id="open-sb">☰ Menu</button>
+            <div style="font-weight:700">SSB 1.0</div>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn ghost" id="btn-simulate">Tắt mô phỏng</button>
+              <button class="btn" id="btn-export">Tải HTML</button>
+            </div>
+          </div>
+
+          <header class="top">
+            <h1 id="page-title">Tổng quan hệ thống</h1>
+            <div class="controls">
+              <div class="chip" id="role-indicator">Quản lý</div>
+              <div class="chip" id="time-indicator">Real-time</div>
+            </div>
+          </header>
+
+          <div class="grid">
+            <section>
+              <div class="card" id="page-content">
+                <!-- Dashboard view -->
+                <div id="m-dashboard-view">
+                  <div style="display:flex;gap:12px;align-items:center">
+                    <div style="flex:1">
+                      <h3>Số liệu nhanh</h3>
+                      <div style="display:flex;gap:10px;margin-top:8px">
+                        <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px">
+                          <div class="muted">Tổng số xe</div>
+                          <div style="font-weight:700;font-size:20px" id="total-buses">0</div>
+                        </div>
+                        <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px">
+                          <div class="muted">Xe đang hoạt động</div>
+                          <div style="font-weight:700;font-size:20px" id="running-buses">0</div>
+                        </div>
+                        <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px">
+                          <div class="muted">Tin nhắn chờ</div>
+                          <div style="font-weight:700;font-size:20px" id="pending-msg">0</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="width:260px">
+                      <h3>Lọc nhanh</h3>
+                      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+                        <select id="filter-route"><option value="all">-- Chọn tuyến --</option></select>
+                        <select id="filter-status"><option value="all">-- Trạng thái --</option><option value="running">Đang chạy</option><option value="stopped">Dừng</option></select>
+                        <button class="btn" id="btn-apply">Áp dụng</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr style="margin:16px 0" />
+
+                  <div style="display:flex;gap:12px">
+                    <div style="flex:1">
+                      <h3>Danh sách xe (mô phỏng)</h3>
+                      <div class="list" id="bus-list">
+                        <!-- buses here -->
+                      </div>
+                    </div>
+                    <aside style="width:360px">
+                      <div class="card map">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                          <div><strong>Map (placeholder)</strong><div class="muted" style="font-size:12px">Bản đồ tạm — tích hợp Google Maps/Mapbox khi backend sẵn sàng</div></div>
+                          <div class="chip" id="realtime-chip">{ realtime }</div>
+                        </div>
+                        <div id="map-items" style="overflow:auto;flex:1;padding-top:6px"></div>
+                      </div>
+
+                      <div style="margin-top:12px" class="card">
+                        <h3>Hoạt động gần đây</h3>
+                        <div class="muted" id="activity-log" style="max-height:120px;overflow:auto"></div>
+                      </div>
+                    </aside>
+                  </div>
+
+                </div>
+
+                <!-- Schedules -->
+                <div id="m-schedules-view" class="hidden">
+                  <h3>Lịch trình</h3>
+                  <div class="muted">Tạo lịch tuần/tháng, phân công tài xế & xe</div>
+                  <div style="margin-top:12px;display:flex;gap:8px">
+                    <div style="flex:2">
+                      <table>
+                        <thead><tr><th>Tên</th><th>Loại</th><th>Thời gian</th><th>Hành động</th></tr></thead>
+                        <tbody id="schedules-table">
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style="width:320px">
+                      <div class="card">
+                        <h3>Tạo / Cập nhật lịch</h3>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                          <input placeholder="Tên lịch" id="sched-name" />
+                          <select id="sched-frequency"><option>Tuần</option><option>Tháng</option></select>
+                          <select id="sched-route"></select>
+                          <button class="btn" id="sched-save">Lưu</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Routes -->
+                <div id="m-routes-view" class="hidden">
+                  <h3>Tuyến & Xe</h3>
+                  <div style="display:flex;gap:12px">
+                    <div style="flex:1">
+                      <table>
+                        <thead><tr><th>ID</th><th>Tên Tuyến</th><th>Xe</th><th>Tài xế</th></tr></thead>
+                        <tbody id="routes-table"></tbody>
+                      </table>
+                    </div>
+                    <div style="width:320px">
+                      <div class="card">
+                        <h3>Thêm tuyến</h3>
+                        <input id="route-name" placeholder="Tên tuyến" />
+                        <textarea id="route-stops" placeholder="Danh sách điểm dừng (phân bởi dấu phẩy)"></textarea>
+                        <button class="btn" id="add-route">Thêm</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Users -->
+                <div id="d-users-view" class="hidden">
+                  <h3>Học sinh / Tài xế</h3>
+                  <div style="display:flex;gap:12px">
+                    <div style="flex:1">
+                      <table>
+                        <thead><tr><th>Loại</th><th>Tên</th><th>Liên hệ</th><th>Hành động</th></tr></thead>
+                        <tbody id="users-table"></tbody>
+                      </table>
+                    </div>
+                    <div style="width:320px">
+                      <div class="card">
+                        <h3>Thêm tài xế</h3>
+                        <input id="driver-name" placeholder="Tên" />
+                        <input id="driver-phone" placeholder="SĐT" />
+                        <button class="btn" id="add-driver">Thêm</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tracking -->
+                <div id="m-tracking-view" class="hidden">
+                  <h3>Theo dõi thời gian thực</h3>
+                  <div class="muted">Bản đồ hiển thị vị trí — mô phỏng bằng dữ liệu giả</div>
+                  <div style="margin-top:12px" id="tracking-map" class="map"></div>
+                </div>
+
+                <!-- Messages -->
+                <div id="m-messages-view" class="hidden">
+                  <h3>Tin nhắn</h3>
+                  <div style="display:flex;gap:12px">
+                    <div style="flex:1">
+                      <div class="card">
+                        <div style="display:flex;gap:8px;align-items:center">
+                          <input id="msg-to" placeholder="Gửi tới (tài xế / phụ huynh)" />
+                          <button class="btn" id="send-msg">Gửi</button>
+                        </div>
+                        <textarea id="msg-body" placeholder="Nội dung tin nhắn" style="margin-top:8px"></textarea>
+                      </div>
+                    </div>
+                    <div style="width:320px">
+                      <div class="card">
+                        <h3>Hộp thư</h3>
+                        <div id="inbox" style="max-height:240px;overflow:auto"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Reports -->
+                <div id="d-reports-view" class="hidden">
+                  <h3>Báo cáo</h3>
+                  <div class="muted">Thống kê lịch sử, tần suất trễ, báo cáo sự cố</div>
+                  <div style="margin-top:10px">
+                    <table>
+                      <thead><tr><th>Ngày</th><th>Loại</th><th>Chi tiết</th></tr></thead>
+                      <tbody id="reports-table"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+            <aside>
+              <div class="card">
+                <h3>Quick actions</h3>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+                  <button class="btn" id="action-assign">Phân công tài xế</button>
+                  <button class="btn ghost" id="action-create-sched">Tạo lịch mới</button>
+                  <button class="btn ghost" id="action-send-alert">Gửi cảnh báo</button>
+                </div>
+              </div>
+
+              <div style="margin-top:12px" class="card">
+                <h3>Thông tin nhanh</h3>
+                <div class="muted">Phiên bản UI: demo</div>
+                <div class="muted">Ngôn ngữ: <span id="ui-lang">Tiếng Việt</span></div>
+              </div>
+
+              <div style="margin-top:12px" class="card">
+                <h3>Gợi ý</h3>
+                <div class="muted">Frontend này dùng HTML/CSS/JS tĩnh. Backend sẽ cung cấp API cho realtime, auth và dữ liệu.</div>
+              </div>
+            </aside>
+
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // === KẾT NỐI API + REALTIME ===
+    let state = { buses: [], routes: [], inbox: [], activities: [] };
+    let simRunning = true;
+
+    // GỌI API THẬT TỪ SQL
+    async function loadRealData() {
+      try {
+        const res = await fetch('http://localhost:3000/api/parents/list');
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          state.buses = data.data.map((p, i) => ({
+            id: 100 + i,
+            plate: `29A-${100 + i}`,
+            route: i % 2 === 0 ? 'Tuyến A' : 'Tuyến B',
+            lat: 21.02 + Math.random() * 0.02,
+            lon: 105.81 + Math.random() * 0.02,
+            status: 'running',
+            driver: p.name
+          }));
+          renderBuses();
+          renderMapItems();
+          updateStats();
+        }
+      } catch (err) {
+        console.error('Lỗi kết nối API:', err);
+        document.body.innerHTML += '<p style="color:red">Không kết nối được server!</p>';
+      }
+    }
+
+    function renderBuses() {
+      const list = document.getElementById('bus-list');
+      if (!list) return;
+      list.innerHTML = state.buses.map(b => `
+        <div class="bus">
+          <div class="pin">${b.id}</div>
+          <div style="flex:1">
+            <div style="font-weight:700">${b.plate}</div>
+            <div style="font-size:13px; color:#64748b">${b.route} • ${b.driver}</div>
+          </div>
+          <span class="status ${b.status}">${b.status === 'running' ? 'Đang chạy' : 'Dừng'}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderMapItems() {
+      const el = document.getElementById('map-items');
+      if (!el) return;
+      el.innerHTML = state.buses.map(b => `
+        <div class="bus">
+          <div class="pin" style="width:32px;height:32px;">Bus</div>
+          <div style="flex:1">
+            <div style="font-weight:700">${b.plate}</div>
+            <div style="font-size:12px; color:#64748b">
+              ${b.route} • ${b.lat.toFixed(4)}, ${b.lon.toFixed(4)}
+            </div>
+          </div>
+          <span class="status ${b.status}">${b.status === 'running' ? 'Chạy' : 'Dừng'}</span>
+        </div>
+      `).join('');
+    }
+
+    function updateStats() {
+      document.getElementById('total-buses').textContent = state.buses.length;
+      document.getElementById('running-buses').textContent = state.buses.filter(b => b.status === 'running').length;
+    }
+
+    function tickSimulate() {
+      if (!simRunning || state.buses.length === 0) return;
+      state.buses.forEach(b => {
+        if (Math.random() > 0.85) b.status = b.status === 'running' ? 'stopped' : 'running';
+        if (b.status === 'running') {
+          b.lat += (Math.random() - 0.5) * 0.001;
+          b.lon += (Math.random() - 0.5) * 0.001;
+        }
+      });
+      const b = state.buses[Math.floor(Math.random() * state.buses.length)];
+      const act = `${new Date().toLocaleTimeString()} — ${b.plate} (${b.route}) ${b.status === 'running' ? 'đang chạy' : 'dừng lại'}`;
+      state.activities.push(act);
+      if (state.activities.length > 50) state.activities.shift();
+
+      renderBuses(); renderMapItems(); updateStats();
+      document.getElementById('activity-log').innerHTML = state.activities.slice().reverse().map(a =>
+        `<div style="padding:6px; border-bottom:1px solid #f1f5f9;">${a}</div>`
+      ).join('');
+    }
+
+    // INIT
+    document.addEventListener('DOMContentLoaded', () => {
+      const role = localStorage.getItem('role') || 'manager';
+      localStorage.setItem('role', role);
+      document.getElementById('role-indicator').textContent = role === 'manager' ? 'Quản lý' : role === 'driver' ? 'Tài xế' : 'Phụ huynh';
+
+      loadRealData();
+      setInterval(tickSimulate, 3000);
+
+      document.getElementById('btn-simulate').addEventListener('click', () => {
+        simRunning = !simRunning;
+        this.textContent = simRunning ? 'Tắt mô phỏng' : 'Bật mô phỏng';
+      });
+
+      document.getElementById('send-msg').addEventListener('click', () => {
+        const to = document.getElementById('msg-to').value;
+        const body = document.getElementById('msg-body').value || '—';
+        state.inbox.push(`${new Date().toLocaleString()} — Gửi: ${to} — ${body}`);
+        document.getElementById('inbox').innerHTML = state.inbox.slice().reverse().map(m =>
+          `<div style="padding:6px; border-bottom:1px solid #f1f5f9; font-size:13px;">${m}</div>`
+        ).join('');
+        document.getElementById('msg-body').value = '';
+      });
+
+      // Navigation
+      document.querySelectorAll('.sidebar li').forEach(li => {
+        li.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar li').forEach(x => x.classList.remove('active'));
+          li.classList.add('active');
+          document.querySelectorAll('[id$="-view"]').forEach(v => v.classList.add('hidden'));
+          const page = li.dataset.page + '-view';
+          const view = document.getElementById(page);
+          if (view) view.classList.remove('hidden');
+          document.getElementById('page-title').textContent = li.textContent;
+        });
+      });
+
+      // Default page
+      document.querySelector('.sidebar li').click();
+    });
+
+    window.logout = () => {
+      localStorage.removeItem('role');
+      alert('Đã đăng xuất!');
+      location.reload();
+    };
+  </script>
+</body>
+</html>
+
+
