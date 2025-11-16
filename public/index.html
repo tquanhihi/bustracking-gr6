@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <title>SSB 1.0 - Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
+  
 </head>
 <body>
   <div class="sidebar" id="left-sidebar">
@@ -184,13 +186,13 @@
                 </div>
 
                 <!-- Tracking -->
+                <!-- Google Maps Realtime -->
                 <div id="m-tracking-view" class="hidden">
                   <h3>Theo dõi thời gian thực</h3>
-                  <div class="muted">Bản đồ hiển thị vị trí — mô phỏng bằng dữ liệu giả</div>
-                  <div style="margin-top:12px" id="tracking-map" class="map"></div>
+                  <div class="muted">Bản đồ Google Maps – vị trí xe cập nhật 3s/lần</div>
+                  <div id="google-map" style="height:500px; margin-top:12px; border-radius:8px; overflow:hidden"></div>
                 </div>
-
-                <!-- Messages -->
+                                <!-- Messages -->
                 <div id="m-messages-view" class="hidden">
                   <h3>Tin nhắn</h3>
                   <div style="display:flex;gap:12px">
@@ -256,17 +258,20 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
-    // === KẾT NỐI API + REALTIME ===
-    let state = { buses: [], routes: [], inbox: [], activities: [] };
+    // === BIẾN TOÀN CỤC ===
+    let state = { buses: [], inbox: [], activities: [] };
     let simRunning = true;
+    let map, markers = [];
+    const socket = io();
 
-    // GỌI API THẬT TỪ SQL
+    // === GỌI API PHỤ HUYNH ===
     async function loadRealData() {
       try {
-        const res = await fetch('http://localhost:3000/api/parents/list');
+        const res = await fetch('/api/parents/list');
         const data = await res.json();
+
         if (data.success && data.data.length > 0) {
           state.buses = data.data.map((p, i) => ({
             id: 100 + i,
@@ -275,18 +280,37 @@
             lat: 21.02 + Math.random() * 0.02,
             lon: 105.81 + Math.random() * 0.02,
             status: 'running',
-            driver: p.name
+            driver: p.full_name
           }));
+
           renderBuses();
           renderMapItems();
           updateStats();
+          updateMapMarkers();
+        } else {
+          console.log("Không có dữ liệu phụ huynh từ API");
         }
       } catch (err) {
-        console.error('Lỗi kết nối API:', err);
-        document.body.innerHTML += '<p style="color:red">Không kết nối được server!</p>';
+        console.error('Lỗi gọi API /api/parents/list:', err);
       }
     }
 
+    // === SOCKET.IO REALTIME ===
+    socket.on('connect', () => {
+      console.log('Connected to server');
+    });
+
+    socket.on('updateBuses', (buses) => {
+      state.buses = buses;
+      renderBuses();
+      renderMapItems();
+      updateStats();
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+    // === RENDER DANH SÁCH XE ===
     function renderBuses() {
       const list = document.getElementById('bus-list');
       if (!list) return;
@@ -324,6 +348,55 @@
       document.getElementById('running-buses').textContent = state.buses.filter(b => b.status === 'running').length;
     }
 
+    // === GOOGLE MAPS: KHỞI TẠO ===
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('google-map'), {
+        center: { lat: 21.0285, lng: 105.8342 },
+        zoom: 12,
+        styles: [{ featureType: "poi", stylers: [{ visibility: "off" }] }]
+      });
+      updateMapMarkers();
+    }
+
+    // === GOOGLE MAPS: CẬP NHẬT MARKER ===
+    function updateMapMarkers() {
+      if (!map) return;
+      markers.forEach(m => m.setMap(null));
+      markers = [];
+
+      state.buses.forEach(b => {
+        const marker = new google.maps.Marker({
+          position: { lat: b.lat, lng: b.lon },
+          map: map,
+          title: b.plate,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg width="32" height="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" fill="#059669" stroke="white" stroke-width="2"/>
+                <text x="12" y="16" font-family="Arial" font-size="14" fill="white" text-anchor="middle">B</text>
+              </svg>
+            `),
+            scaledSize: new google.maps.Size(32, 32)
+          }
+        });
+
+        const info = new google.maps.InfoWindow({
+          content: `<div style="padding:8px;font-family:sans-serif">
+            <b>${b.plate}</b><br>
+            Tài xế: ${b.driver}<br>
+            Tuyến: ${b.route}<br>
+            Trạng thái: <span style="color:${b.status==='running'?'#059669':'#6b7280'}">
+              ${b.status === 'running' ? 'Đang chạy' : 'Dừng'}
+            </span>
+          </div>`
+        });
+
+        marker.addListener('click', () => info.open(map, marker));
+        markers.push(marker);
+      });
+    }
+
+    // === MÔ PHỎNG REALTIME ===
     function tickSimulate() {
       if (!simRunning || state.buses.length === 0) return;
       state.buses.forEach(b => {
@@ -333,31 +406,38 @@
           b.lon += (Math.random() - 0.5) * 0.001;
         }
       });
+
       const b = state.buses[Math.floor(Math.random() * state.buses.length)];
       const act = `${new Date().toLocaleTimeString()} — ${b.plate} (${b.route}) ${b.status === 'running' ? 'đang chạy' : 'dừng lại'}`;
       state.activities.push(act);
       if (state.activities.length > 50) state.activities.shift();
 
-      renderBuses(); renderMapItems(); updateStats();
+      renderBuses();
+      renderMapItems();
+      updateStats();
+      updateMapMarkers(); // CẬP NHẬT BẢN ĐỒ
       document.getElementById('activity-log').innerHTML = state.activities.slice().reverse().map(a =>
         `<div style="padding:6px; border-bottom:1px solid #f1f5f9;">${a}</div>`
       ).join('');
     }
 
-    // INIT
+    // === KHỞI ĐỘNG ===
     document.addEventListener('DOMContentLoaded', () => {
       const role = localStorage.getItem('role') || 'manager';
       localStorage.setItem('role', role);
-      document.getElementById('role-indicator').textContent = role === 'manager' ? 'Quản lý' : role === 'driver' ? 'Tài xế' : 'Phụ huynh';
+      document.getElementById('role-indicator').textContent = 
+        role === 'manager' ? 'Quản lý' : role === 'driver' ? 'Tài xế' : 'Phụ huynh';
 
       loadRealData();
       setInterval(tickSimulate, 3000);
 
-      document.getElementById('btn-simulate').addEventListener('click', () => {
+      // NÚT MÔ PHỎNG
+      document.getElementById('btn-simulate').addEventListener('click', function() {
         simRunning = !simRunning;
         this.textContent = simRunning ? 'Tắt mô phỏng' : 'Bật mô phỏng';
       });
 
+      // GỬI TIN NHẮN
       document.getElementById('send-msg').addEventListener('click', () => {
         const to = document.getElementById('msg-to').value;
         const body = document.getElementById('msg-body').value || '—';
@@ -368,21 +448,31 @@
         document.getElementById('msg-body').value = '';
       });
 
-      // Navigation
+      // NAVIGATION
       document.querySelectorAll('.sidebar li').forEach(li => {
         li.addEventListener('click', () => {
           document.querySelectorAll('.sidebar li').forEach(x => x.classList.remove('active'));
           li.classList.add('active');
           document.querySelectorAll('[id$="-view"]').forEach(v => v.classList.add('hidden'));
-          const page = li.dataset.page + '-view';
-          const view = document.getElementById(page);
+          const view = document.getElementById(li.dataset.page + '-view');
           if (view) view.classList.remove('hidden');
-          document.getElementById('page-title').textContent = li.textContent;
+          document.getElementById('page-title').textContent = li.querySelector('span').textContent;
         });
       });
 
-      // Default page
+      // MỞ TRANG ĐẦU
       document.querySelector('.sidebar li').click();
+
+      // TẢI GOOGLE MAPS TỪ SERVER
+      fetch('/config').then(r => r.json()).then(config => {
+        if (config.googleMapsApiKey) {
+          const script = document.createElement('script');
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMapsApiKey}&callback=initMap`;
+          script.async = true;
+          script.defer = true;
+          document.head.appendChild(script);
+        }
+      });
     });
 
     window.logout = () => {

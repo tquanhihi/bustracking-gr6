@@ -13,13 +13,18 @@
       <button onclick="loginAs('manager')">👔 Quản lý (Manager)</button>
       <button onclick="loginAs('driver')">🚌 Tài xế (Driver)</button>
       <button onclick="loginAs('parent')">👪 Phụ huynh (Parent)</button>
+      <button onclick="loginAs('admin')">🔐 Quản trị viên (Admin)</button>
     </div>
   </div>
 
   <script>
     function loginAs(role) {
       localStorage.setItem('role', role);
-      window.location.href = 'index.html';
+      if (role === 'admin') {
+        window.location.href = 'admin.html';
+      } else {
+        window.location.href = 'index.html';
+      }
     }
   </script>
 </body>
