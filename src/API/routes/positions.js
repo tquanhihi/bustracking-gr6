@@ -1,7 +1,7 @@
 // routes/positions.js
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../../db");
+const { pool } = require("../db");
 
 router.post("/", async (req, res) => {
   const { bus_id, lat, lon, speed_kmh = 0, heading = 0 } = req.body;

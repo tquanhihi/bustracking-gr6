@@ -2,10 +2,10 @@
   "name": "bustracking-gr6",
   "version": "1.0.0",
   "description": "School Bus Tracking System",
-  "main": "src/server.js",
+  "main": "src/API/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "start": "node src/API/server.js",
+    "dev": "node src/API/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

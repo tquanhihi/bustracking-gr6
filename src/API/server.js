@@ -8,7 +8,7 @@ const path = require("path");
 
 // KẾT NỐI DB – ĐÚNG RỒI!
 const { pool } = require("./db.js");
-require('./mock_gps.js');
+require('../mock/mock_gps.js')
 console.log("Kết nối MySQL thành công!");
 
 const app = express();
