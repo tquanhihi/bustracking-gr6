@@ -1,10 +1,24 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM assignments ORDER BY assignment_id DESC");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM assignments';
+    const params = [];
+    if (q) {
+      // try to match numeric ids or fallback to string match
+      if (/^\d+$/.test(q)) {
+        sql += ' WHERE schedule_id = ? OR bus_id = ? OR driver_id = ?';
+        params.push(q, q, q);
+      } else {
+        // no textual fields on assignments, return all or filtered by schedule/driver/bus text not available
+        sql += ' WHERE 1=0';
+      }
+    }
+    sql += ' ORDER BY assignment_id DESC';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: "Lỗi server", message: err.message });
@@ -69,7 +83,7 @@ router.delete("/:id", async (req, res) => {
     req.app.get("io")?.emit("assignmentDeleted", { assignment_id: parseInt(req.params.id) });
     res.json({ success: true, message: "Xóa thành công" });
   } catch (err) {
-    res.status(500).json({ success: false, error: "L?i server", message: err.message });
+    res.status(500).json({ success: false, error: "Lỗii server", message: err.message });
   }
 });
 

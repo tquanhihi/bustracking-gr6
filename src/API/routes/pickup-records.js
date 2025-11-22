@@ -1,10 +1,23 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM pickup_records ORDER BY record_id DESC LIMIT 500");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM pickup_records';
+    const params = [];
+    if (q) {
+      if (/^\d+$/.test(q)) {
+        sql += ' WHERE student_id = ? OR bus_id = ? OR driver_id = ?';
+        params.push(q, q, q);
+      } else {
+        sql += ' WHERE remark LIKE ?';
+        params.push(`%${q}%`);
+      }
+    }
+    sql += ' ORDER BY record_id DESC LIMIT 500';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: "L?i server", message: err.message });

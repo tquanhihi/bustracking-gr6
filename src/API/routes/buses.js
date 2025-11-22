@@ -1,10 +1,19 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM buses ORDER BY bus_id DESC");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM buses';
+    const params = [];
+    if (q) {
+      sql += ' WHERE plate_no LIKE ? OR description LIKE ?';
+      const like = `%${q}%`;
+      params.push(like, like);
+    }
+    sql += ' ORDER BY bus_id DESC';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error("Lỗi GET /list:", err);

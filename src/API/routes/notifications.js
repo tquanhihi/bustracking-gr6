@@ -1,10 +1,19 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM notifications ORDER BY notif_id DESC LIMIT 500");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM notifications';
+    const params = [];
+    if (q) {
+      sql += ' WHERE content LIKE ? OR notif_type LIKE ?';
+      const like = `%${q}%`;
+      params.push(like, like);
+    }
+    sql += ' ORDER BY notif_id DESC LIMIT 500';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: "L?i server", message: err.message });

@@ -1,10 +1,19 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM routes ORDER BY route_id DESC");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM routes';
+    const params = [];
+    if (q) {
+      sql += ' WHERE route_name LIKE ? OR description LIKE ?';
+      const like = `%${q}%`;
+      params.push(like, like);
+    }
+    sql += ' ORDER BY route_id DESC';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: "Lỗi server", message: err.message });

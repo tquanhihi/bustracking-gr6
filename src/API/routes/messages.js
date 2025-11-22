@@ -1,10 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM messages ORDER BY message_id DESC LIMIT 500");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM messages';
+    const params = [];
+    if (q) {
+      sql += ' WHERE message_text LIKE ?';
+      params.push(`%${q}%`);
+    }
+    sql += ' ORDER BY message_id DESC LIMIT 500';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: "Lỗi server", message: err.message });

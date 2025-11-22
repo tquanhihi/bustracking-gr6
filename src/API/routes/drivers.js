@@ -1,12 +1,21 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db");
+const { pool } = require("../../db");
 
 const isValidPhone = (phone) => /^\d{10,11}$/.test(phone.replace(/[-\s]/g, ""));
 
 router.get("/list", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM drivers ORDER BY driver_id DESC");
+    const q = (req.query.q || '').trim();
+    let sql = 'SELECT * FROM drivers';
+    const params = [];
+    if (q) {
+      sql += ' WHERE full_name LIKE ? OR phone LIKE ? OR license_no LIKE ?';
+      const like = `%${q}%`;
+      params.push(like, like, like);
+    }
+    sql += ' ORDER BY driver_id DESC';
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error("Lỗi GET /list:", err);
@@ -52,7 +61,7 @@ router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { full_name, phone, license_no, status } = req.body;
 
-  if (!full_name?.trim()) return res.status(400).json({ success: false, error: "T�n t�i x? b?t bu?c" });
+  if (!full_name?.trim()) return res.status(400).json({ success: false, error: "Tên tài xế bắt buộc" });
 
   try {
     const [result] = await pool.query(
@@ -75,7 +84,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const [result] = await pool.query("DELETE FROM drivers WHERE driver_id = ?", [req.params.id]);
-    if (result.affectedRows === 0) return res.status(404).json({ success: false, error: "Kh�ng t�m th?y t�i x?" });
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, error: "Không tìm thấy tài xế" });
 
     req.app.get("io")?.emit("driverDeleted", { driver_id: parseInt(req.params.id) });
     res.json({ success: true, message: "Xóa thành công" });

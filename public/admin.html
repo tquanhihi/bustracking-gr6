@@ -2,656 +2,216 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>SSB 1.0 - Admin Panel</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - SSB 1.0</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#f1f5f9; margin:0; display:flex; }
+    .sidebar { width:260px; background:#1e293b; color:white; padding:20px; height:100vh; position:fixed; }
+    .sidebar-brand { font-size:22px; font-weight:bold; margin-bottom:30px; }
+    nav button { width:100%; text-align:left; padding:12px 16px; margin:6px 0; border:none; background:#334155; color:white; border-radius:8px; cursor:pointer; transition:0.2s; }
+    nav button:hover, nav button.active { background:#475569; }
+    .main-content { margin-left:260px; padding:24px; width:100%; }
+    .card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 10px rgba(0,0,0,0.1); margin-bottom:24px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:12px; text-align:left; border-bottom:1px solid #e2e8f0; }
+    th { background:#f8fafc; font-weight:600; }
+    .btn { background:#059669; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; }
+    .btn.danger { background:#dc2626; }
+    .btn.ghost { background:transparent; color:#059669; border:1px solid #059669; }
+    .hidden { display:none; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:998; }
+    .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:24px; border-radius:12px; z-index:999; width:90%; max-width:500px; }
+    .chip { background:#e0e7ff; color:#4338ca; padding:4px 12px; border-radius:20px; font-size:13px; }
+    .muted { color:#64748b; font-size:13px; }
+  </style>
 </head>
-<body>
-  <div class="sidebar" id="left-sidebar">
-    <h2>SSB Admin</h2>
-    <ul id="main-nav">
-      <!-- === QUẢN LÝ HỆ THỐNG === -->
-      <li data-page="admin-dashboard">📊 <span>Dashboard</span></li>
-      <li data-page="admin-users">👥 <span>Quản lý người dùng</span></li>
-      <li data-page="admin-managers">👔 <span>Quản lý cấp quản lý</span></li>
-      <li data-page="admin-drivers">🚌 <span>Quản lý tài xế</span></li>
-      <li data-page="admin-parents">👪 <span>Quản lý phụ huynh</span></li>
-      <li data-page="admin-settings">⚙️ <span>Cài đặt hệ thống</span></li>
-      <li data-page="admin-analytics">📈 <span>Thống kê & báo cáo</span></li>
-      <li data-page="admin-logs">📋 <span>Nhật ký hoạt động</span></li>
-    </ul>
-    <button class="logout-btn" onclick="logout()">Đăng xuất</button>
-  </div>
+<body class="admin-page">
 
-  <div class="main-content" id="main-content-area">
-    <div class="app" id="app">
-      <main class="main">
-        <div class="container">
-          <div class="mobile-top">
-            <button class="open-sb" id="open-sb">☰ Menu</button>
-            <div style="font-weight:700">SSB Admin</div>
-            <div style="margin-left:auto;display:flex;gap:8px">
-              <button class="btn ghost" id="btn-refresh">🔄 Làm mới</button>
-            </div>
-          </div>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">SSB Admin</div>
+    <nav>
+      <button class="btn active" data-view="dashboard">Dashboard</button>
+      <button class="btn" data-view="parents">Phụ huynh</button>
+      <button class="btn" data-view="drivers">Tài xế</button>
+      <button class="btn" data-view="buses">Xe buýt</button>
+      <button class="btn" data-view="students">Học sinh</button>
+      <button class="btn" data-view="routes">Tuyến</button>
+      <button class="btn" data-view="messages">Tin nhắn</button>
+      <button class="btn" data-view="logs">Logs</button>
+      <div style="margin-top:auto;padding-top:20px">
+        <button id="logoutBtn" class="btn ghost">Đăng xuất</button>
+      </div>
+    </nav>
+  </aside>
 
-          <header class="top">
-            <h1 id="page-title">Dashboard</h1>
-            <div class="controls">
-              <div class="chip" id="role-indicator">Admin</div>
-              <div class="chip" id="timestamp-indicator">Offline</div>
-            </div>
-          </header>
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="card" style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 id="view-title">Dashboard</h2>
+        <div class="muted">Quản trị hệ thống SSB</div>
+      </div>
+      <div class="chip">Role: <span id="role-indicator">Admin</span></div>
+    </header>
 
-          <div class="grid">
-            <section>
-              <div class="card" id="page-content">
-
-                <!-- Dashboard View -->
-                <div id="admin-dashboard-view">
-                  <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
-                    <div style="flex:1">
-                      <h3>Tổng quan hệ thống</h3>
-                      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
-                        <div style="flex:1;min-width:140px;background:#f9fafb;padding:12px;border-radius:8px">
-                          <div class="muted">Tổng người dùng</div>
-                          <div style="font-weight:700;font-size:20px" id="total-users">0</div>
-                        </div>
-                        <div style="flex:1;min-width:140px;background:#f9fafb;padding:12px;border-radius:8px">
-                          <div class="muted">Quản lý</div>
-                          <div style="font-weight:700;font-size:20px" id="total-managers">0</div>
-                        </div>
-                        <div style="flex:1;min-width:140px;background:#f9fafb;padding:12px;border-radius:8px">
-                          <div class="muted">Tài xế</div>
-                          <div style="font-weight:700;font-size:20px" id="total-drivers">0</div>
-                        </div>
-                        <div style="flex:1;min-width:140px;background:#f9fafb;padding:12px;border-radius:8px">
-                          <div class="muted">Phụ huynh</div>
-                          <div style="font-weight:700;font-size:20px" id="total-parents">0</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <hr style="margin:16px 0" />
-
-                  <div style="display:flex;gap:12px">
-                    <div style="flex:1">
-                      <h3>Hoạt động gần đây</h3>
-                      <table>
-                        <thead><tr><th>Thời gian</th><th>Loại</th><th>Chi tiết</th><th>Trạng thái</th></tr></thead>
-                        <tbody id="dashboard-activity-table"></tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- User Management View -->
-                <div id="admin-users-view" class="hidden">
-                  <h3>Quản lý người dùng</h3>
-                  <div class="muted">Xem và quản lý tất cả tài khoản người dùng trong hệ thống</div>
-                  <div style="margin-top:12px;display:flex;gap:8px">
-                    <div style="flex:1">
-                      <table>
-                        <thead><tr><th>ID</th><th>Tên</th><th>Email</th><th>Loại</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
-                        <tbody id="users-table"></tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Manager Management View -->
-                <div id="admin-managers-view" class="hidden">
-                  <h3>Quản lý cấp quản lý</h3>
-                  <div style="display:flex;gap:12px">
-                    <div style="flex:1">
-                      <table>
-                        <thead><tr><th>ID</th><th>Tên</th><th>Email</th><th>Số điện thoại</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
-                        <tbody id="managers-table"></tbody>
-                      </table>
-                    </div>
-                    <div style="width:320px">
-                      <div class="card">
-                        <h3>Thêm quản lý</h3>
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                          <input id="mgr-name" placeholder="Tên quản lý" />
-                          <input id="mgr-email" placeholder="Email" type="email" />
-                          <input id="mgr-phone" placeholder="Số điện thoại" />
-                          <input id="mgr-password" placeholder="Mật khẩu" type="password" />
-                          <button class="btn" id="add-manager">Thêm</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Driver Management View -->
-                <div id="admin-drivers-view" class="hidden">
-                  <h3>Quản lý tài xế</h3>
-                  <div style="display:flex;gap:12px">
-                    <div style="flex:1">
-                      <table>
-                        <thead><tr><th>ID</th><th>Tên</th><th>Email</th><th>Bằng lái</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
-                        <tbody id="drivers-table"></tbody>
-                      </table>
-                    </div>
-                    <div style="width:320px">
-                      <div class="card">
-                        <h3>Thêm tài xế</h3>
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                          <input id="drv-name" placeholder="Tên tài xế" />
-                          <input id="drv-email" placeholder="Email" type="email" />
-                          <input id="drv-license" placeholder="Số bằng lái" />
-                          <input id="drv-phone" placeholder="Số điện thoại" />
-                          <button class="btn" id="add-driver">Thêm</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Parent Management View -->
-                <div id="admin-parents-view" class="hidden">
-                  <h3>Quản lý phụ huynh</h3>
-                  <div style="display:flex;gap:12px">
-                    <div style="flex:1">
-                      <table>
-                        <thead><tr><th>ID</th><th>Tên</th><th>Email</th><th>Số điện thoại</th><th>Số con</th><th>Hành động</th></tr></thead>
-                        <tbody id="parents-table"></tbody>
-                      </table>
-                    </div>
-                    <div style="width:320px">
-                      <div class="card">
-                        <h3>Xem chi tiết</h3>
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                          <input id="parent-search" placeholder="Tìm kiếm phụ huynh..." />
-                          <button class="btn" id="search-parent">Tìm</button>
-                          <div id="parent-detail" style="margin-top:12px;font-size:13px"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- System Settings View -->
-                <div id="admin-settings-view" class="hidden">
-                  <h3>Cài đặt hệ thống</h3>
-                  <div style="display:flex;gap:12px">
-                    <div style="flex:1">
-                      <div class="card">
-                        <h3>Cấu hình cơ bản</h3>
-                        <div style="display:flex;flex-direction:column;gap:12px">
-                          <div>
-                            <label style="display:block;margin-bottom:4px;font-weight:500">Tên hệ thống</label>
-                            <input id="sys-name" placeholder="SSB 1.0" style="width:100%" />
-                          </div>
-                          <div>
-                            <label style="display:block;margin-bottom:4px;font-weight:500">Email hỗ trợ</label>
-                            <input id="sys-email" placeholder="support@ssb.local" type="email" style="width:100%" />
-                          </div>
-                          <div>
-                            <label style="display:block;margin-bottom:4px;font-weight:500">Số điện thoại hỗ trợ</label>
-                            <input id="sys-phone" placeholder="024-xxxx-xxxx" style="width:100%" />
-                          </div>
-                          <div>
-                            <label style="display:block;margin-bottom:4px;font-weight:500">Google Maps API Key</label>
-                            <input id="sys-gmaps" placeholder="YOUR_API_KEY" type="password" style="width:100%" />
-                          </div>
-                          <button class="btn" id="save-settings">Lưu cấu hình</button>
-                        </div>
-                      </div>
-                    </div>
-                    <div style="width:320px">
-                      <div class="card">
-                        <h3>Quản lý</h3>
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                          <button class="btn ghost" id="btn-backup">💾 Sao lưu dữ liệu</button>
-                          <button class="btn ghost" id="btn-reset">⚠️ Đặt lại dữ liệu</button>
-                          <button class="btn ghost" id="btn-export-data">📥 Xuất dữ liệu</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Analytics & Reports View -->
-                <div id="admin-analytics-view" class="hidden">
-                  <h3>Thống kê & báo cáo</h3>
-                  <div style="display:flex;gap:12px;margin-top:12px">
-                    <div style="flex:1">
-                      <div class="card">
-                        <h3>Thống kê người dùng</h3>
-                        <div style="display:flex;gap:10px;margin-top:12px">
-                          <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px">
-                            <div class="muted">Quản lý</div>
-                            <div style="font-weight:700;font-size:18px" id="stats-mgr">0</div>
-                          </div>
-                          <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px">
-                            <div class="muted">Tài xế</div>
-                            <div style="font-weight:700;font-size:18px" id="stats-drv">0</div>
-                          </div>
-                          <div style="flex:1;background:#f9fafb;padding:12px;border-radius:8px">
-                            <div class="muted">Phụ huynh</div>
-                            <div style="font-weight:700;font-size:18px" id="stats-par">0</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="card" style="margin-top:12px">
-                        <h3>Xuất báo cáo</h3>
-                        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
-                          <select id="report-type">
-                            <option value="">-- Chọn loại báo cáo --</option>
-                            <option value="users">Báo cáo người dùng</option>
-                            <option value="activity">Báo cáo hoạt động</option>
-                            <option value="routes">Báo cáo tuyến đường</option>
-                            <option value="schedules">Báo cáo lịch trình</option>
-                          </select>
-                          <select id="report-period">
-                            <option value="today">Hôm nay</option>
-                            <option value="week">Tuần này</option>
-                            <option value="month">Tháng này</option>
-                            <option value="all">Toàn bộ</option>
-                          </select>
-                          <button class="btn" id="generate-report">Tạo báo cáo</button>
-                        </div>
-                      </div>
-                    </div>
-                    <div style="width:360px">
-                      <div class="card">
-                        <h3>Báo cáo gần đây</h3>
-                        <div id="recent-reports" style="max-height:300px;overflow:auto"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Activity Logs View -->
-                <div id="admin-logs-view" class="hidden">
-                  <h3>Nhật ký hoạt động</h3>
-                  <div style="display:flex;gap:12px;margin-top:12px">
-                    <div style="flex:1">
-                      <div class="card">
-                        <div style="display:flex;gap:8px;margin-bottom:12px">
-                          <input id="log-search" placeholder="Tìm kiếm nhật ký..." style="flex:1" />
-                          <select id="log-filter" style="min-width:120px">
-                            <option value="">-- Tất cả --</option>
-                            <option value="login">Đăng nhập</option>
-                            <option value="create">Tạo</option>
-                            <option value="update">Cập nhật</option>
-                            <option value="delete">Xóa</option>
-                            <option value="error">Lỗi</option>
-                          </select>
-                          <button class="btn" id="apply-log-filter">Lọc</button>
-                        </div>
-                        <table>
-                          <thead><tr><th>Thời gian</th><th>Người dùng</th><th>Hành động</th><th>Chi tiết</th></tr></thead>
-                          <tbody id="logs-table"></tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </section>
-
-            <aside>
-              <div class="card">
-                <h3>Tác vụ nhanh</h3>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-                  <button class="btn" id="action-add-user">➕ Thêm người dùng</button>
-                  <button class="btn ghost" id="action-view-reports">📊 Xem báo cáo</button>
-                  <button class="btn ghost" id="action-system-health">❤️ Kiểm tra hệ thống</button>
-                </div>
-              </div>
-
-              <div style="margin-top:12px" class="card">
-                <h3>Thông tin hệ thống</h3>
-                <div class="muted" style="font-size:12px">
-                  <div>Phiên bản: 1.0.0</div>
-                  <div>Trạng thái: <span style="color:#059669">Hoạt động</span></div>
-                  <div>Database: <span id="db-status">Kiểm tra...</span></div>
-                  <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0">
-                    Phiên làm việc: <span id="session-info">—</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style="margin-top:12px" class="card">
-                <h3>Ghi chú</h3>
-                <div class="muted" style="font-size:12px">
-                  Admin panel cung cấp toàn quyền quản lý hệ thống. Sử dụng cẩn thận các tác vụ nguy hiểm như xóa dữ liệu.
-                </div>
-              </div>
-            </aside>
-
-          </div>
-
+    <!-- Dashboard -->
+    <section id="view-dashboard" class="view card">
+      <h3>Hệ thống</h3>
+      <div class="grid">
+        <div class="card"><h4>Health</h4><div id="health-status">Đang kiểm tra...</div></div>
+        <div class="card"><h4>Realtime</h4><div id="realtime-badges">Kết nối Socket.IO</div></div>
+      </div>
+        <!-- Google Map container -->
+        <div class="card" style="margin-top:16px">
+          <h4>Bản đồ vị trí xe</h4>
+          <div id="map" style="height:420px;width:100%;border-radius:6px;background:#f5f7fb">Đang tải bản đồ...</div>
         </div>
-      </main>
+      <h3 style="margin-top:24px">Thống kê</h3>
+      <div class="grid">
+        <div class="card" style="text-align:center"><h1 style="color:#2563eb" id="stat-parents">0</h1><p>Phụ huynh</p></div>
+        <div class="card" style="text-align:center"><h1 style="color:#dc2626" id="stat-drivers">0</h1><p>Tài xế</p></div>
+        <div class="card" style="text-align:center"><h1 style="color:#16a34a" id="stat-buses">0</h1><p>Xe buýt</p></div>
+        <div class="card" style="text-align:center"><h1 style="color:#ea580c" id="stat-students">0</h1><p>Học sinh</p></div>
+      </div>
+    </section>
+
+    <!-- Phụ huynh -->
+    <section id="view-parents" class="view card hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3>Phụ huynh</h3>
+        <button class="btn" onclick="openAddModal()">Thêm phụ huynh</button>
+      </div>
+      <input type="text" placeholder="Tìm kiếm..." style="width:100%;padding:10px;margin:12px 0;border:1px solid #ccc;border-radius:6px">
+      <div class="muted">Tổng: <strong id="parents-count">0</strong></div>
+      <table class="table">
+        <thead><tr><th>ID</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Hành động</th></tr></thead>
+        <tbody id="parents-table-body"></tbody>
+      </table>
+    </section>
+
+    <!-- Modal -->
+    <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+    <div id="modal" class="modal hidden">
+      <div class="modal-header">
+        <h3 id="modal-title">Thêm phụ huynh</h3>
+        <button onclick="closeModal()" class="btn ghost">✕</button>
+      </div>
+      <div>
+        <input id="input-name" placeholder="Họ tên" />
+        <input id="input-phone" placeholder="SĐT" />
+        <input id="input-email" placeholder="Email" />
+      </div>
+      <div style="text-align:right;margin-top:16px">
+        <button class="btn" onclick="saveParent()">Lưu</button>
+        <button class="btn ghost" onclick="closeModal()">Hủy</button>
+      </div>
     </div>
-  </div>
+
+  </main>
 
   <script>
-    // === GLOBAL STATE ===
-    let adminState = {
-      users: [],
-      managers: [],
-      drivers: [],
-      parents: [],
-      activityLogs: [],
-      settings: {}
-    };
+    const socket = io();
+    let state = { buses: [], parents: [] };
+    let editingId = null;
 
-    let currentLogFilter = '';
-
-    // === INITIALIZATION ===
-    document.addEventListener('DOMContentLoaded', () => {
-      // Check admin role
-      const role = localStorage.getItem('role');
-      if (role !== 'admin') {
-        alert('Chỉ quản trị viên mới có thể truy cập trang này!');
-        window.location.href = 'login.html';
-        return;
-      }
-
-      document.getElementById('role-indicator').textContent = 'Admin';
-      document.getElementById('session-info').textContent = 
-        new Date().toLocaleString('vi-VN');
-
-      // Load initial data
-      loadDashboardData();
-      loadAllUsers();
-      updateTimestamp();
-
-      // Set up navigation
-      setupNavigation();
-
-      // Set up event listeners
-      setupEventListeners();
-
-      // Refresh button
-      document.getElementById('btn-refresh').addEventListener('click', () => {
-        loadDashboardData();
-        loadAllUsers();
-      });
-
-      // Show first page
-      document.querySelector('.sidebar li').click();
+    // === CHUYỂN TAB ===
+    document.querySelectorAll('nav button').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+        document.getElementById(`view-${btn.dataset.view}`).classList.remove('hidden');
+        document.getElementById('view-title').textContent = btn.textContent;
+        if (btn.dataset.view === 'parents') loadParents();
+      };
     });
 
-    // === LOAD DATA FUNCTIONS ===
-    function loadDashboardData() {
-      // Simulated data loading - replace with actual API calls
-      const mockData = {
-        totalUsers: 45,
-        totalManagers: 3,
-        totalDrivers: 12,
-        totalParents: 30,
-        activities: [
-          { time: new Date().toLocaleTimeString(), type: 'login', detail: 'Manager 01 đăng nhập', status: 'thành công' },
-          { time: new Date(Date.now() - 60000).toLocaleTimeString(), type: 'create', detail: 'Tạo tài xế mới', status: 'thành công' },
-          { time: new Date(Date.now() - 300000).toLocaleTimeString(), type: 'update', detail: 'Cập nhật lịch trình', status: 'thành công' }
-        ]
-      };
-
-      document.getElementById('total-users').textContent = mockData.totalUsers;
-      document.getElementById('total-managers').textContent = mockData.totalManagers;
-      document.getElementById('total-drivers').textContent = mockData.totalDrivers;
-      document.getElementById('total-parents').textContent = mockData.totalParents;
-
-      document.getElementById('stats-mgr').textContent = mockData.totalManagers;
-      document.getElementById('stats-drv').textContent = mockData.totalDrivers;
-      document.getElementById('stats-par').textContent = mockData.totalParents;
-
-      const actTable = document.getElementById('dashboard-activity-table');
-      actTable.innerHTML = mockData.activities.map(a => `
-        <tr>
-          <td style="font-size:12px">${a.time}</td>
-          <td><span style="background:#e0e7ff;color:#4c1d95;padding:2px 8px;border-radius:4px;font-size:12px">${a.type}</span></td>
-          <td>${a.detail}</td>
-          <td><span style="color:#059669;font-weight:500">${a.status}</span></td>
-        </tr>
-      `).join('');
-
-      adminState.users = Array(mockData.totalUsers).fill(0).map((_, i) => ({
-        id: i + 1,
-        name: `User ${i + 1}`,
-        email: `user${i + 1}@ssb.local`,
-        type: ['manager', 'driver', 'parent'][Math.floor(Math.random() * 3)],
-        status: Math.random() > 0.2 ? 'active' : 'inactive',
-        createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('vi-VN')
-      }));
-
-      adminState.managers = adminState.users.filter(u => u.type === 'manager');
-      adminState.drivers = adminState.users.filter(u => u.type === 'driver');
-      adminState.parents = adminState.users.filter(u => u.type === 'parent');
-
-      renderTables();
-    }
-
-    function loadAllUsers() {
-      // Placeholder for API call to load users
-      console.log('Loading all users...');
-    }
-
-    function renderTables() {
-      // Render users table
-      const usersTable = document.getElementById('users-table');
-      usersTable.innerHTML = adminState.users.map(u => `
-        <tr>
-          <td>#${u.id}</td>
-          <td>${u.name}</td>
-          <td style="font-size:12px">${u.email}</td>
-          <td><span style="background:#f3e8ff;color:#6b21a8;padding:2px 6px;border-radius:4px;font-size:12px">
-            ${u.type === 'manager' ? '👔 Quản lý' : u.type === 'driver' ? '🚌 Tài xế' : '👪 Phụ huynh'}
-          </span></td>
-          <td><span style="color:${u.status === 'active' ? '#059669' : '#dc2626'}">${u.status === 'active' ? 'Hoạt động' : 'Vô hiệu hóa'}</span></td>
-          <td><button class="btn ghost" style="font-size:12px">Sửa</button></td>
-        </tr>
-      `).join('');
-
-      // Render managers table
-      const mgrsTable = document.getElementById('managers-table');
-      mgrsTable.innerHTML = adminState.managers.map(m => `
-        <tr>
-          <td>#${m.id}</td>
-          <td>${m.name}</td>
-          <td style="font-size:12px">${m.email}</td>
-          <td>024-xxxx-xxxx</td>
-          <td style="font-size:12px">${m.createdAt}</td>
-          <td>
-            <button class="btn ghost" style="font-size:12px;margin-right:4px">Sửa</button>
-            <button class="btn ghost" style="font-size:12px">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
-
-      // Render drivers table
-      const drvsTable = document.getElementById('drivers-table');
-      drvsTable.innerHTML = adminState.drivers.map(d => `
-        <tr>
-          <td>#${d.id}</td>
-          <td>${d.name}</td>
-          <td style="font-size:12px">${d.email}</td>
-          <td>123456789</td>
-          <td><span style="color:#059669">Hoạt động</span></td>
-          <td>
-            <button class="btn ghost" style="font-size:12px;margin-right:4px">Sửa</button>
-            <button class="btn ghost" style="font-size:12px">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
-
-      // Render parents table
-      const partsTable = document.getElementById('parents-table');
-      partsTable.innerHTML = adminState.parents.map(p => `
-        <tr>
-          <td>#${p.id}</td>
-          <td>${p.name}</td>
-          <td style="font-size:12px">${p.email}</td>
-          <td>0912-xxx-xxx</td>
-          <td>${Math.floor(Math.random() * 3) + 1}</td>
-          <td>
-            <button class="btn ghost" style="font-size:12px;margin-right:4px">Xem</button>
-            <button class="btn ghost" style="font-size:12px">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
-
-      // Render logs table (sample data)
-      const logsTable = document.getElementById('logs-table');
-      const sampleLogs = [
-        { time: '14:23:45', user: 'admin@ssb.local', action: 'login', detail: 'Đăng nhập thành công' },
-        { time: '14:15:20', user: 'mgr001@ssb.local', action: 'create', detail: 'Tạo tài xế mới' },
-        { time: '14:10:10', user: 'mgr001@ssb.local', action: 'update', detail: 'Cập nhật lịch trình' },
-        { time: '14:05:33', user: 'admin@ssb.local', action: 'delete', detail: 'Xóa người dùng không hoạt động' },
-      ];
-      logsTable.innerHTML = sampleLogs.map(log => `
-        <tr>
-          <td style="font-size:12px">${log.time}</td>
-          <td>${log.user}</td>
-          <td><span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:12px">${log.action}</span></td>
-          <td style="font-size:12px">${log.detail}</td>
-        </tr>
-      `).join('');
-    }
-
-    function updateTimestamp() {
-      setInterval(() => {
-        const now = new Date();
-        document.getElementById('timestamp-indicator').textContent = now.toLocaleTimeString('vi-VN');
-      }, 1000);
-    }
-
-    // === SETUP FUNCTIONS ===
-    function setupNavigation() {
-      document.querySelectorAll('.sidebar li').forEach(li => {
-        li.addEventListener('click', () => {
-          document.querySelectorAll('.sidebar li').forEach(x => x.classList.remove('active'));
-          li.classList.add('active');
-          document.querySelectorAll('[id$="-view"]').forEach(v => v.classList.add('hidden'));
-          const view = document.getElementById(li.dataset.page + '-view');
-          if (view) view.classList.remove('hidden');
-          document.getElementById('page-title').textContent = li.querySelector('span').textContent;
-        });
-      });
-    }
-
-    function setupEventListeners() {
-      // Add Manager
-      document.getElementById('add-manager')?.addEventListener('click', () => {
-        const name = document.getElementById('mgr-name').value;
-        const email = document.getElementById('mgr-email').value;
-        if (name && email) {
-          alert(`Thêm quản lý "${name}" thành công!`);
-          document.getElementById('mgr-name').value = '';
-          document.getElementById('mgr-email').value = '';
-          document.getElementById('mgr-phone').value = '';
-          document.getElementById('mgr-password').value = '';
-        }
-      });
-
-      // Add Driver
-      document.getElementById('add-driver')?.addEventListener('click', () => {
-        const name = document.getElementById('drv-name').value;
-        const email = document.getElementById('drv-email').value;
-        if (name && email) {
-          alert(`Thêm tài xế "${name}" thành công!`);
-          document.getElementById('drv-name').value = '';
-          document.getElementById('drv-email').value = '';
-          document.getElementById('drv-license').value = '';
-          document.getElementById('drv-phone').value = '';
-        }
-      });
-
-      // Search Parent
-      document.getElementById('search-parent')?.addEventListener('click', () => {
-        const search = document.getElementById('parent-search').value;
-        if (search) {
-          document.getElementById('parent-detail').innerHTML = `
-            <strong>Phụ huynh: ${search}</strong><br>
-            Email: parent@ssb.local<br>
-            SĐT: 0912-345-678<br>
-            Số con: 2<br>
-            <br>
-            <strong>Con em:</strong><br>
-            1. Nguyễn A (ID: S001) - Lớp 1A<br>
-            2. Nguyễn B (ID: S002) - Lớp 2B
-          `;
-        }
-      });
-
-      // Generate Report
-      document.getElementById('generate-report')?.addEventListener('click', () => {
-        const type = document.getElementById('report-type').value;
-        const period = document.getElementById('report-period').value;
-        if (type) {
-          alert(`Đang tạo báo cáo ${type} cho ${period}...`);
-          const reportItem = `<div style="padding:8px;border-bottom:1px solid #e2e8f0;font-size:12px">
-            📄 Báo cáo ${type} (${period})<br>
-            <span style="color:#94a3b8">${new Date().toLocaleString('vi-VN')}</span>
-          </div>`;
-          const reportsDiv = document.getElementById('recent-reports');
-          reportsDiv.innerHTML = reportItem + reportsDiv.innerHTML;
-        }
-      });
-
-      // Save Settings
-      document.getElementById('save-settings')?.addEventListener('click', () => {
-        alert('Cấu hình hệ thống đã được lưu!');
-      });
-
-      // Backup, Reset, Export buttons
-      document.getElementById('btn-backup')?.addEventListener('click', () => {
-        alert('Đang sao lưu dữ liệu...');
-      });
-      document.getElementById('btn-reset')?.addEventListener('click', () => {
-        if (confirm('⚠️ Bạn chắc chắn muốn xóa tất cả dữ liệu? Hành động này không thể hoàn tác!')) {
-          alert('Dữ liệu đã được đặt lại.');
-        }
-      });
-      document.getElementById('btn-export-data')?.addEventListener('click', () => {
-        alert('Đang xuất dữ liệu...');
-      });
-
-      // Quick actions
-      document.getElementById('action-add-user')?.addEventListener('click', () => {
-        document.querySelector('[data-page="admin-managers"]').click();
-      });
-      document.getElementById('action-view-reports')?.addEventListener('click', () => {
-        document.querySelector('[data-page="admin-analytics"]').click();
-      });
-
-      // Log filter
-      document.getElementById('apply-log-filter')?.addEventListener('click', () => {
-        currentLogFilter = document.getElementById('log-filter').value;
-        alert(`Lọc nhật ký theo: ${currentLogFilter || 'Tất cả'}`);
-      });
-    }
-
-    // === UTILITY FUNCTIONS ===
-    window.logout = () => {
-      localStorage.removeItem('role');
-      alert('Đã đăng xuất!');
-      window.location.href = 'login.html';
-    };
-
-    // Check database connection
-    async function checkDatabaseStatus() {
+    // === LOAD PHỤ HUYNH ===
+    async function loadParents() {
       try {
-        const res = await fetch('/api/health');
-        const data = await res.json();
-        document.getElementById('db-status').textContent = data.database ? '✓ OK' : '✗ Lỗi';
-        document.getElementById('db-status').style.color = data.database ? '#059669' : '#dc2626';
-      } catch (err) {
-        document.getElementById('db-status').textContent = '✗ Không kết nối';
-        document.getElementById('db-status').style.color = '#dc2626';
+        const res = await fetch('/api/parents/list');
+        const json = await res.json();
+        if (json.success) {
+          document.getElementById('parents-count').textContent = json.count;
+          document.getElementById('parents-table-body').innerHTML = json.data.map(p => `
+            <tr>
+              <td>${p.id}</td>
+              <td>${p.full_name}</td>
+              <td>${p.phone||'-'}</td>
+              <td>${p.email||'-'}</td>
+              <td>
+                <button class="btn small" onclick="editParent(${p.id},'${p.full_name}','${p.phone||''}','${p.email||''}')">Sửa</button>
+                <button class="btn danger small" onclick="deleteParent(${p.id})">Xóa</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    // === MODAL ===
+    function openAddModal() {
+      editingId = null;
+      document.getElementById('modal-title').textContent = 'Thêm phụ huynh';
+      document.getElementById('input-name').value = '';
+      document.getElementById('input-phone').value = '';
+      document.getElementById('input-email').value = '';
+      document.getElementById('modal-backdrop').classList.remove('hidden');
+      document.getElementById('modal').classList.remove('hidden');
+    }
+    function editParent(id, name, phone, email) {
+      editingId = id;
+      document.getElementById('modal-title').textContent = 'Sửa phụ huynh';
+      document.getElementById('input-name').value = name;
+      document.getElementById('input-phone').value = phone;
+      document.getElementById('input-email').value = email;
+      document.getElementById('modal-backdrop').classList.remove('hidden');
+      document.getElementById('modal').classList.remove('hidden');
+    }
+    function closeModal() {
+      document.getElementById('modal-backdrop').classList.add('hidden');
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    // === CRUD ===
+    async function saveParent() {
+      const data = {
+        full_name: document.getElementById('input-name').value,
+        phone: document.getElementById('input-phone').value,
+        email: document.getElementById('input-email').value
+      };
+      const url = editingId ? `/api/parents/${editingId}` : '/api/parents';
+      const method = editingId ? 'PUT' : 'POST';
+      await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+      closeModal();
+      loadParents();
+    }
+    async function deleteParent(id) {
+      if (confirm('Xóa phụ huynh này?')) {
+        await fetch(`/api/parents/${id}`, { method:'DELETE' });
+        loadParents();
       }
     }
 
-    checkDatabaseStatus();
+    // === REALTIME ===
+    socket.on('parentAdded', loadParents);
+    socket.on('parentUpdated', loadParents);
+    socket.on('parentDeleted', loadParents);
+
+    // === KHỞI ĐỘNG ===
+    document.addEventListener('DOMContentLoaded', () => {
+      loadParents();
+      document.querySelector('nav button').click(); // Mở Dashboard
+    });
+
+    document.getElementById('logoutBtn').onclick = () => {
+      localStorage.removeItem('role');
+      location.href = 'login.html';
+    };
   </script>
 </body>
 </html>
